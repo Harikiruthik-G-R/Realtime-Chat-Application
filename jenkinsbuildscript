@@ -1,0 +1,42 @@
+echo "Stopping old containers..."
+
+docker stop realchat-server realchat-client mongo || true
+docker rm realchat-server realchat-client mongo || true
+
+
+echo "Creating Docker network..."
+docker network create realchat-network || true
+
+
+echo "Running MongoDB..."
+
+docker run -d \
+  --name mongo \
+  --network realchat-network \
+  -p 27017:27017 \
+  mongo
+
+
+echo "Running Backend..."
+
+docker run -d \
+  --name realchat-server \
+  --network realchat-network \
+  -p 5000:5000 \
+  -e PORT=5000 \
+  -e MONGODB_URI=mongodb://mongo:27017/realchat \
+  -e JWT_SECRET=4686ecebd4a569d9c42c70935aff022f066a1f1556656b39ee07208f0d4be623c7cff8c0c01ef0d90ab56ab6f044f113989614525c18f723a9c4ac6842369c32 \
+  harikiruthik/realchat-server:latest
+
+
+echo "Running Frontend..."
+
+docker run -d \
+  --name realchat-client \
+  --network realchat-network \
+  -p 3000:3000 \
+  harikiruthik/realchat-client:latest
+
+
+echo "Cleaning up..."
+docker system prune -f
