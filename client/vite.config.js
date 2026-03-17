@@ -4,11 +4,12 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: {
+    server: {
     port: 3000,
+    host: "0.0.0.0",   // 🔥 REQUIRED for Docker
     proxy: {
       '/api': {
-        target: 'http://server:5000',
+        target: 'http://realchat-server:5000',  // ✅ FIXED
         changeOrigin: true,
       },
     },
