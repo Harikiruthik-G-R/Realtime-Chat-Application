@@ -1,0 +1,32 @@
+version: "3.9"
+services:
+  server:
+    build: ./server
+    image: realchat-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/realchat/app/server
+    depends_on:
+      - mongo
+    command: ["node", "server.js"]  # Ensure server listens on 0.0.0.0
+
+  client:
+    build: ./client
+    image: realchat-client
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+
+  mongo:
+    image: mongo:6
+    container_name: realchat-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
