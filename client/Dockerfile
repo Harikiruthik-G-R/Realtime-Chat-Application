@@ -1,18 +1,19 @@
-FROM node:20.17.0
+FROM node:20.17.0 as build
 
-WORKDIR /realchat/app/client
-
-ENV NODE_ENV=development
+WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
 
 COPY . .
+RUN npm run build   # 🔥 build static files
 
-EXPOSE 3000
 
-# Install wait-on
-RUN npm install -g wait-on
+# ---- Serve with NGINX ----
+FROM nginx:alpine
 
-# 🔥 Clear Vite cache EVERY time container starts
-CMD ["sh", "-c", "rm -rf node_modules/.vite && npm run dev -- --host 0.0.0.0"]
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

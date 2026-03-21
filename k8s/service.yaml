@@ -34,4 +34,4 @@ spec:
     app: realchat-client
   ports:
     - port: 80          #public port
-      targetPort: 3000  #container port
+      targetPort: 80  #container port
