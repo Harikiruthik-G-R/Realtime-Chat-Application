@@ -1,22 +1,69 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: myapp
-  namespace: myapp
+  name: mongo
+  namespace: realchat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo
+        ports:
+        - containerPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realchat-server
+  namespace: realchat
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: myapp
-
+      app: realchat-server
   template:
     metadata:
       labels:
-        app: myapp
+        app: realchat-server
     spec:
       containers:
-        - name: myapp
-          image: harikiruthik/myapp:latest
-          ports:
-            - containerPort: 80
-          imagePullPolicy: Always
+      - name: server
+        image: harikiruthik/realchat-server:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PORT
+          value: "5000"
+        - name: MONGODB_URI
+          value: "mongodb://mongo:27017/realchat"
+        - name: JWT_SECRET
+          value: "4686ecebd4a569d9c42c70935aff022f066a1f1556656b39ee07208f0d90ab56ab6f044f113989614525c18f723a9c4ac6842369c32"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realchat-client
+  namespace: realchat
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: realchat-client
+  template:
+    metadata:
+      labels:
+        app: realchat-client
+    spec:
+      containers:
+      - name: client
+        image: harikiruthik/realchat-client:latest
+        ports:
+        - containerPort: 3000

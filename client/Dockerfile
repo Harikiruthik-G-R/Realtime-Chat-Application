@@ -14,4 +14,4 @@ EXPOSE 3000
 # Wait for server to be ready before starting client
 RUN npm install -g wait-on
 
-CMD ["sh", "-c", "wait-on tcp:realchat-server:5000 && npm run dev -- --host 0.0.0.0"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

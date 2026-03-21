@@ -1,12 +1,37 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: myapp-service
-  namespace: myapp
+  name: mongo
+  namespace: realchat
 spec:
-  type: ClusterIP
   selector:
-    app: myapp
+    app: mongo
   ports:
-    - port: 80
-      targetPort: 80
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realchat-server
+  namespace: realchat
+spec:
+  selector:
+    app: realchat-server
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realchat-client
+  namespace: realchat
+spec:
+  selector:
+    app: realchat-client
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: NodePort
