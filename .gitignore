@@ -36,3 +36,4 @@ server/node_modules
 server/.env
 
 eks-terraform/.terraform
+eks-terraform/terraform.tfstate

@@ -29,9 +29,9 @@ metadata:
   name: realchat-client
   namespace: realchat
 spec:
+  type: LoadBalancer
   selector:
     app: realchat-client
   ports:
-    - port: 3000
-      targetPort: 3000
-  type: NodePort
+    - port: 80          #public port
+      targetPort: 3000  #container port

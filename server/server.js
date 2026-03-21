@@ -27,10 +27,20 @@ const io = socketio(server, {
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://mongo:27017/realchat';
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const connectDB = async () => {
+  while (true) {
+    try {
+      await mongoose.connect(MONGODB_URI);
+      console.log("✅ Connected to MongoDB");
+      break;
+    } catch (err) {
+      console.error("❌ MongoDB connection failed, retrying...", err.message);
+      await new Promise(res => setTimeout(res, 5000));
+    }
+  }
+};
 
+connectDB();
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);

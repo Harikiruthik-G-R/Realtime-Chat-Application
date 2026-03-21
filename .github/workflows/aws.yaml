@@ -1,0 +1,151 @@
+name: RealChat DevOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  SERVER_IMAGE: harikiruthik/realchat-server
+  CLIENT_IMAGE: harikiruthik/realchat-client
+  CLUSTER_NAME: harimy-eks
+  REGION: ${{ secrets.AWS_REGION }}
+  NAMESPACE: realchat
+
+jobs:
+
+# ==========================================
+# STAGE 1 – TEST
+# ==========================================
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install backend deps
+        run: |
+          cd server
+          npm ci
+
+      - name: Install frontend deps
+        run: |
+          cd client
+          npm ci
+
+      - name: Run tests
+        run: echo "No tests yet"
+
+
+# ==========================================
+# STAGE 2 – BUILD & PUSH DOCKER IMAGES
+# ==========================================
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: true
+          tags: |
+            ${{ env.SERVER_IMAGE }}:latest
+            ${{ env.SERVER_IMAGE }}:${{ github.sha }}
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./client
+          push: true
+          tags: |
+            ${{ env.CLIENT_IMAGE }}:latest
+            ${{ env.CLIENT_IMAGE }}:${{ github.sha }}
+
+
+# ==========================================
+# STAGE 3 – DEPLOY TO EKS
+# ==========================================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # AWS Login
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Install kubectl
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      # Connect to EKS
+      - name: Connect to EKS
+        run: |
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region $REGION
+          kubectl get nodes
+
+      # Apply Kubernetes configs
+      - name: Deploy Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          sleep 5
+          kubectl apply -f k8s/deployment.yaml -n $NAMESPACE
+          kubectl apply -f k8s/service.yaml -n $NAMESPACE
+          kubectl apply -f k8s/ingress.yaml -n $NAMESPACE || true
+
+      - name: Update Backend Image
+        run: |
+          kubectl set image deployment/realchat-server \
+            server=${{ env.SERVER_IMAGE }}:${{ github.sha }} \
+            -n $NAMESPACE
+
+      - name: Update Frontend Image
+        run: |
+          kubectl set image deployment/realchat-client \
+            client=${{ env.CLIENT_IMAGE }}:${{ github.sha }} \
+            -n $NAMESPACE
+
+      - name: Force restart (safety)
+        run: |
+          kubectl rollout restart deployment/realchat-server -n $NAMESPACE
+          kubectl rollout restart deployment/realchat-client -n $NAMESPACE
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/realchat-server -n $NAMESPACE
+          kubectl rollout status deployment/realchat-client -n $NAMESPACE
+
+      - name: Debug info
+        run: |
+          kubectl get pods -n $NAMESPACE
+          kubectl get svc -n $NAMESPACE
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Debug logs
+        run: |
+          kubectl logs -l app=realchat-client -n $NAMESPACE || true
+          kubectl logs -l app=realchat-server -n $NAMESPACE || true
