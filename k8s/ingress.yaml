@@ -3,8 +3,8 @@ kind: Ingress
 metadata:
   name: realchat-ingress
   namespace: realchat
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
   - host: realchat.local
